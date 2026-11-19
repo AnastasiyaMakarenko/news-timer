@@ -26,6 +26,10 @@ def gh(*args):
     return subprocess.run(["gh", *args], capture_output=True, text=True, check=True).stdout.strip()
 
 
+# проверка доступа на каждом тике: если токен сломался — в логе сразу видно
+gh("run", "list", "-R", REPO, "--workflow", WORKFLOW, "--limit", "1")
+print("Доступ есть")
+
 now = dt.datetime.now(MSK)
 slots = [dt.datetime.combine(now.date(), dt.time(*map(int, t.split(":"))), MSK)
          for t in SPECIAL.get(now.date().isoformat(), SLOTS)]
