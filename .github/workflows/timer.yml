@@ -1,0 +1,57 @@
+name: timer
+
+# Тикает каждые ~10 минут круглые сутки: каждый запуск в конце ставит следующий.
+# На каждом тике tick.py решает, пора ли запускать работу по расписанию.
+# cron — страховка: если цепочка оборвалась, перезапускает её.
+# Выключить: Actions -> timer -> ... -> Disable workflow.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Цепочка уже идёт? (только для запуска по cron)
+        id: chain
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          n=$(gh run list -R "$GITHUB_REPOSITORY" --workflow timer.yml --event workflow_dispatch --limit 3 --json status,createdAt \
+            -q "[.[] | select(.status != \"completed\" or (now - (.createdAt | fromdateiso8601)) < 1500)] | length")
+          [ "$n" != "0" ] && echo "skip=true" >> "$GITHUB_OUTPUT" || true
+
+      - uses: actions/checkout@v4
+        if: steps.chain.outputs.skip != 'true'
+
+      - name: Пора?
+        if: steps.chain.outputs.skip != 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
+          TARGET_REPO: ${{ secrets.TARGET_REPO }}
+          FEED_URL: ${{ secrets.FEED_URL }}
+        run: python3 tick.py
+
+      - name: Следующий тик через ~10 минут
+        if: always() && steps.chain.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          started=$(gh run view "$GITHUB_RUN_ID" -R "$GITHUB_REPOSITORY" --json createdAt -q .createdAt)
+          wait=$(( 600 - ( $(date +%s) - $(date -d "$started" +%s) ) ))
+          [ "$wait" -gt 0 ] && sleep "$wait"
+          others=$(gh run list -R "$GITHUB_REPOSITORY" --workflow timer.yml --json databaseId,status \
+            -q "[.[] | select(.databaseId != $GITHUB_RUN_ID and .status != \"completed\")] | length")
+          if [ "$others" = "0" ]; then
+            gh workflow run timer.yml -R "$GITHUB_REPOSITORY" --ref main && echo "Следующий тик поставлен"
+          else
+            echo "Другой тик уже в очереди"
+          fi
