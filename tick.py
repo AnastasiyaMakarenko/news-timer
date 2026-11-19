@@ -38,7 +38,7 @@ if not due:
     print("Слотов пока не было — ждём")
     raise SystemExit
 
-req = urllib.request.Request(f"{FEED}?t={int(now.timestamp())}", headers={"Cache-Control": "no-cache"})
+req = urllib.request.Request(f"{FEED}?t={int(now.timestamp())}", headers={"Cache-Control": "no-cache", "User-Agent": "Mozilla/5.0 (timer)"})
 items = json.load(urllib.request.urlopen(req, timeout=30))["items"]
 last = max(dt.datetime.fromisoformat(n["published"]) for n in items)
 if last >= due[-1]:
