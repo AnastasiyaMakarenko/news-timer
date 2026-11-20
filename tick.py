@@ -54,5 +54,5 @@ if busy != "0":
     print("Запуск уже идёт — ждём")
     raise SystemExit
 
-gh("workflow", "run", WORKFLOW, "-R", REPO, "-f", "count=1")
+gh("workflow", "run", WORKFLOW, "-R", REPO, "--ref", "main", "-f", "count=1")
 print(f"Слот {due[-1]:%H:%M}: запуск поставлен")
