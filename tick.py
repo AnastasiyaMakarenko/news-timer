@@ -23,7 +23,10 @@ SPECIAL = {"2026-11-19": [], "2026-11-20": ["00:44"] + SLOTS}   # 20.11 00:44 �
 
 
 def gh(*args):
-    return subprocess.run(["gh", *args], capture_output=True, text=True, check=True).stdout.strip()
+    r = subprocess.run(["gh", *args], capture_output=True, text=True)
+    if r.returncode:
+        raise SystemExit(f"gh {args[0]} {args[1]}: ошибка: {r.stderr.strip()}")
+    return r.stdout.strip()
 
 
 # проверка доступа на каждом тике: если токен сломался — в логе сразу видно
